@@ -61,14 +61,24 @@ export async function POST(request: Request) {
       }
     );
 
-    if (!response.ok) {
-      console.error("Vani provider returned status:", response.status);
 
-      return NextResponse.json(
-        { error: "Vani could not reply. Please try again." },
-        { status: 502 }
-      );
-    }
+if (!response.ok) {
+  const errorDetails = await response.text();
+
+  console.error("Vani provider error:", {
+    status: response.status,
+    details: errorDetails,
+  });
+
+  return NextResponse.json(
+    {
+      error: "Vani AI request failed.",
+      providerStatus: response.status,
+      details: errorDetails,
+    },
+    { status: 502 }
+  );
+}
 
     const data = await response.json();
     const reply = data.choices?.[0]?.message?.content;
