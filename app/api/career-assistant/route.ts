@@ -3,11 +3,12 @@ import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   try {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.GROQ_API_KEY;
 
     if (!apiKey) {
+      console.error("GROQ_API_KEY is missing");
       return NextResponse.json(
-        { error: "Vani AI API key is not configured." },
+        { error: "Vani AI is not configured on the server." },
         { status: 500 }
       );
     }
@@ -16,7 +17,7 @@ export async function POST(request: Request) {
 
     if (!Array.isArray(body.messages)) {
       return NextResponse.json(
-        { error: "Invalid messages format." },
+        { error: "Invalid chat messages." },
         { status: 400 }
       );
     }
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
     }
 
     const response = await fetch(
-      "https://api.openai.com/v1/chat/completions",
+      "https://api.groq.com/openai/v1/chat/completions",
       {
         method: "POST",
         headers: {
@@ -48,12 +49,12 @@ export async function POST(request: Request) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: "openai/gpt-oss-20b",
           messages: [
             {
               role: "system",
               content:
-                "You are Vani, the friendly AI career assistant for LearningDude AI. Help students with career choices, roadmaps, coding, projects, resumes, internships and interviews. Answer general questions too. Use simple Hinglish by default unless another language is requested. Give clear, practical and honest answers.",
+                "You are Vani, the friendly AI career assistant for LearningDude AI. Help students with career choices, roadmaps, coding, projects, resumes, internships and interviews. Answer general questions too. Use simple Hinglish by default unless the user requests another language. Give clear, practical, honest answers. Never claim you performed an action you did not perform.",
             },
             ...messages,
           ],
@@ -61,24 +62,18 @@ export async function POST(request: Request) {
       }
     );
 
+    if (!response.ok) {
+      const details = await response.text();
+      console.error("Groq provider error:", {
+        status: response.status,
+        details,
+      });
 
-if (!response.ok) {
-  const errorDetails = await response.text();
-
-  console.error("Vani provider error:", {
-    status: response.status,
-    details: errorDetails,
-  });
-
-  return NextResponse.json(
-    {
-      error: "Vani AI request failed.",
-      providerStatus: response.status,
-      details: errorDetails,
-    },
-    { status: 502 }
-  );
-}
+      return NextResponse.json(
+        { error: "Vani could not reply. Please try again." },
+        { status: 502 }
+      );
+    }
 
     const data = await response.json();
     const reply = data.choices?.[0]?.message?.content;
@@ -93,7 +88,6 @@ if (!response.ok) {
     return NextResponse.json({ reply: reply.trim() });
   } catch (error) {
     console.error("Vani API error:", error);
-
     return NextResponse.json(
       { error: "Vani is temporarily unavailable." },
       { status: 500 }
